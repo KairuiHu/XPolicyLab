@@ -13,13 +13,19 @@ else
   source "$(conda info --base)/etc/profile.d/conda.sh"
   conda activate "$8"
 fi
-export PYTHONPATH="$XPL_ROOT:$BENCH_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONPATH="$BENCH_ROOT:$XPL_ROOT${PYTHONPATH:+:$PYTHONPATH}"
+num_envs="${EVAL_NUM_ENVS:-8}"
+[[ "$num_envs" =~ ^[1-8]$ ]] || { echo 'EVAL_NUM_ENVS must be between 1 and 8' >&2; exit 2; }
 if [[ "${EVAL_ENV_TYPE:-sim}" == debug ]]; then
   exec python "$SCRIPT_DIR/debug_client.py" --env-cfg-type "$4" \
     --host "${11:-localhost}" --port "${10}" \
-    --episodes "${DEBUG_EVAL_EPISODES:-2}"
+    --episodes "${DEBUG_EVAL_EPISODES:-2}" --num-envs "$num_envs"
 fi
 [[ "$1" == RoboDojo ]] || { echo 'This adapter supports RoboDojo simulation' >&2; exit 2; }
-exec bash "$BENCH_ROOT/scripts/robodojo.sh" client --task "$2" \
-  --policy-name RoboDojoEndpoint --policy-host "${11:-localhost}" --policy-port "${10}" \
-  --ckpt "$3" --env-cfg "$4" --action-type "$5" --seed "$6" --env-gpu "$7"
+# Run the official evaluation entry point with an explicit environment count.
+export CUDA_VISIBLE_DEVICES="$7"
+cd "$BENCH_ROOT"
+exec python -u src/eval_client/main.py --task_name "$2" --env_cfg_type "$4" \
+  --num_envs "$num_envs" --policy_name RoboDojoEndpoint --host "${11:-localhost}" \
+  --port "${10}" --protocol ws --additional_info "$9" --seed "$6" --device_id "$7" \
+  --enable_cameras --kit_args '--enable isaacsim.replicator.behavior --enable isaacsim.sensors.camera' --headless

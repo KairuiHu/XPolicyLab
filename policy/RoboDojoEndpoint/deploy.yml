@@ -9,4 +9,5 @@ env_cfg_type: arx_x5
 seed: null
 action_type: joint
 gpu_id: null
-eval_batch: false
+eval_batch: true
+max_batch_size: 8
